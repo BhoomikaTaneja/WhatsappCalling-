@@ -98,9 +98,9 @@ function processCallEvent(call, callManager, io) {
 
 function processMessageEvent(msg, value, callManager, io) {
   // Handle permission grant responses (interactive messages)
-  if (msg.type === 'interactive' && msg.interactive?.type === 'call_permission_response') {
+  if (msg.type === 'interactive' && msg.interactive?.type === 'call_permission_reply') {
     const phone = msg.from;
-    const granted = msg.interactive?.call_permission_response?.status === 'granted';
+    const granted = msg.interactive?.call_permission_reply?.response === 'accept';
     console.log(`[Permission] Phone=${phone} granted=${granted}`);
     if (granted) {
       callManager.handlePermissionGranted(phone, io);
