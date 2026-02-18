@@ -1,0 +1,20 @@
+{
+  "name": "whatsapp-calling-demo",
+  "version": "1.0.0",
+  "description": "WhatsApp Business Calling API demo with outbound voice calls via WebRTC",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "dotenv": "^16.4.7",
+    "axios": "^1.7.9",
+    "socket.io": "^4.8.1",
+    "@roamhq/wrtc": "^0.8.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}
