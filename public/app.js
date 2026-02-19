@@ -6,6 +6,7 @@ let peerConnection = null;
 let callTimer = null;
 let callStartTime = null;
 let callStuckTimeout = null;
+let ringingTimeout = null;
 
 // ── Socket.IO Connection Status ──
 
@@ -32,9 +33,18 @@ socket.on('permission-granted', (data) => {
 
 socket.on('call-ringing', (data) => {
   clearTimeout(callStuckTimeout);
+  clearTimeout(ringingTimeout);
   log(`Call ${data.callId} ringing at ${data.phone}`, 'event');
   showStatus('callStatus', 'Ringing...', 'warning');
   currentCallId = data.callId;
+  // If no answer within 45s, show "no answer"
+  ringingTimeout = setTimeout(() => {
+    if (currentCallId === data.callId) {
+      showStatus('callStatus', 'No answer. <button onclick="resetCalls()" style="margin-left:8px;padding:4px 12px;cursor:pointer;border-radius:4px;border:1px solid #c00;background:#fff0f0;color:#c00;">Reset</button>', 'error');
+      log('No answer — ringing timed out after 45s', 'error');
+      document.getElementById('btnCall').disabled = false;
+    }
+  }, 45000);
 });
 
 socket.on('call-accepted', (data) => {
@@ -44,6 +54,7 @@ socket.on('call-accepted', (data) => {
 
 socket.on('call-connected', (data) => {
   clearTimeout(callStuckTimeout);
+  clearTimeout(ringingTimeout);
   log(`Call ${data.callId} connected!`, 'event');
   showStatus('callStatus', 'Call connected - audio active', 'active');
   document.getElementById('callControls').style.display = 'flex';
@@ -486,6 +497,7 @@ async function sendMessage() {
 
 function cleanupCall() {
   clearTimeout(callStuckTimeout);
+  clearTimeout(ringingTimeout);
   if (localStream) {
     localStream.getTracks().forEach(track => track.stop());
     localStream = null;
