@@ -30,6 +30,13 @@ app.post('/webhook', validateSignature, (req, res) => {
   handleWebhookEvent(req, res, callManager, io);
 });
 
+// Forwarded webhook from n8n (no Meta signature - n8n already validated)
+app.post('/webhook/forward', (req, res) => {
+  const field = req.body?.entry?.[0]?.changes?.[0]?.field;
+  console.log(`[Webhook] Forwarded from n8n (field: ${field})`);
+  handleWebhookEvent(req, res, callManager, io);
+});
+
 // ── API routes ──
 
 app.post('/api/enable-calling', async (req, res) => {
@@ -70,7 +77,10 @@ app.post('/api/initiate-call', async (req, res) => {
     const { phone } = req.body;
     if (!phone) return res.status(400).json({ error: 'phone is required' });
 
-    const result = await callManager.startOutboundCall(phone, io);
+    // Pick the first connected socket so SDP request goes to one client only
+    const sockets = await io.fetchSockets();
+    const socket = sockets[0] || null;
+    const result = await callManager.startOutboundCall(phone, io, socket);
     res.json({ success: true, data: result });
   } catch (err) {
     console.error('[API] Initiate call error:', err.response?.data || err.message);
@@ -87,6 +97,19 @@ app.post('/api/accept-call', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[API] Accept call error:', err.response?.data || err.message);
+    res.status(500).json({ success: false, error: err.response?.data || err.message });
+  }
+});
+
+app.post('/api/reject-call', async (req, res) => {
+  try {
+    const { callId } = req.body;
+    if (!callId) return res.status(400).json({ error: 'callId is required' });
+
+    await callManager.rejectInboundCall(callId, io);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[API] Reject call error:', err.response?.data || err.message);
     res.status(500).json({ success: false, error: err.response?.data || err.message });
   }
 });
@@ -151,9 +174,18 @@ io.on('connection', (socket) => {
 
   socket.on('accept-call', async (data) => {
     try {
-      await callManager.acceptInboundCall(data.callId, io);
+      await callManager.acceptInboundCall(data.callId, io, socket);
     } catch (err) {
       console.error('[Socket.IO] accept-call error:', err.message);
+      socket.emit('error', { message: err.message });
+    }
+  });
+
+  socket.on('reject-call', async (data) => {
+    try {
+      await callManager.rejectInboundCall(data.callId, io);
+    } catch (err) {
+      console.error('[Socket.IO] reject-call error:', err.message);
       socket.emit('error', { message: err.message });
     }
   });
